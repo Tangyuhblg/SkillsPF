@@ -511,9 +511,6 @@ def contains_sensitive_path(path: Optional[Any], rules: RuleConfig) -> bool:
     return any(k in low for k in rules.sensitive_path_keywords)
 
 
-# ============================================================
-# 【修改位置 3】论文模式分类辅助函数
-# ============================================================
 
 def match_call_pattern(name: str, pattern_map: Dict[str, Set[str]]) -> str:
     for pattern, calls in pattern_map.items():
@@ -1067,7 +1064,7 @@ class PDGTaintAnalyzer:
         return findings
 
     def make_finding(self, source_id: int, sink_id: int, path: List[int]) -> Finding:
-        """【修改位置 6】生成 Finding 时补充论文模式、严重级别、Kill Chain 和攻击链标签。"""
+        
         src = self.pdg.nodes[source_id]
         sink = self.pdg.nodes[sink_id]
         source_label = src.meta.get("source", src.label)
@@ -1115,7 +1112,7 @@ class PDGTaintAnalyzer:
         source_pattern: str,
         sink_pattern: str,
     ) -> Tuple[str, str, str, str]:
-        """【修改位置 7】根据 Source/Sink 组合输出论文式缺陷类型。"""
+        
         source_low = source_label.lower()
         sink_low = sink_label.lower()
 
