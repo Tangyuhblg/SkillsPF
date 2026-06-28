@@ -10,18 +10,6 @@ Python 静态污点分析器：基于 AST + CFG + DFG 构建 PDG 后执行 Sourc
 3. DFG：保存定义-使用数据流边，用于表达变量、属性、容器值从定义点到使用点的传播。
 4. PDG：Program Dependence Graph = AST edges + CFG edges + DFG edges + call/return edges。
 5. 污点分析：把 Source 节点作为起点，在 PDG 的数据依赖边和跨函数边上传播，若可达 Sink，则报告隐私泄露候选路径。
-
-使用方式
---------
-python py_pdg_taint.py target.py
-python py_pdg_taint.py /path/to/project --json result.json
-python py_pdg_taint.py target.py --dot pdg.dot
-python py_pdg_taint.py target.py --edge-types dfg call return
-
-说明
-----
-这是研究原型级静态分析器，重点用于理解和验证“AST + CFG + DFG → PDG → 静态污点分析”的方法。
-它不会执行被分析代码。对于动态反射、复杂别名、元编程、第三方框架隐式语义等，仍可能存在误报和漏报。
 """
 
 from __future__ import annotations
@@ -43,17 +31,7 @@ from typing import Any, DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 @dataclass(frozen=True)
 class RuleConfig:
-    """【修改位置 1】基于论文攻击模式重构 Source / Sink / Sanitizer 规则。
-
-    论文模式到当前 PDG 污点分析器的落地方式：
-    - Source：E2 凭证收集、PE3 凭证文件访问、E3 文件枚举、P3 Agent 上下文、SC2 远程响应、SC3 混淆解码结果。
-    - Sink：E1 外部传输、P3 上下文/数据暴露、SC1 命令执行、SC2 远程脚本执行、PE2 权限提升、D8 动态导入/反射。
-    - P1/P2/P4/PE1 主要属于 SKILL.md 文本/配置攻击面，应在后续新增文本检测模块，不直接作为 Python PDG Source/Sink。
-    """
-
-    # ========================================================
-    # 【修改位置 1.1】Source：E2 / P3 / SC2 / SC3 / 通用不可信输入
-    # ========================================================
+    
     source_calls: Set[str] = field(default_factory=lambda: {
         # E2 Credential Harvesting
         "cmd", "exec-code", "os.getenv", "os.environ.get", "os.environ.__getitem__", "dotenv.get_key", "dotenv_values",
@@ -82,9 +60,7 @@ class RuleConfig:
         "marshal.loads", "pickle.loads",
     })
 
-    # ========================================================
-    # 【修改位置 1.2】File Source：PE3 凭证文件访问 + E3 文件系统枚举
-    # ========================================================
+    
     file_read_calls: Set[str] = field(default_factory=lambda: {
         "open", "io.open", "codecs.open", "pathlib.Path.open", "pathlib.Path.read_text",
         "pathlib.Path.read_bytes", "Path.open", "Path.read_text", "Path.read_bytes", "read", "readlines",
@@ -93,9 +69,7 @@ class RuleConfig:
         "sqlite3.connect", "shelve.open",
     })
 
-    # ========================================================
-    # 【修改位置 1.3】Sink：E1 / P3 / SC1 / SC2 / PE2 / D8
-    # ========================================================
+   
     sink_calls: Set[str] = field(default_factory=lambda: {
         # E1 External Transmission
         "requests.get", "requests.post", "requests.put", "requests.patch", "requests.delete", "requests.request",
@@ -133,9 +107,7 @@ class RuleConfig:
         "socket.connect", "socket.gethostbyname", "nmap.PortScanner.scan", "os.chmod", "os.chown",
     })
 
-    # ========================================================
-    # 【修改位置 1.4】Sanitizer：脱敏、净化、白名单、路径规范化
-    # ========================================================
+   
     sanitizer_calls: Set[str] = field(default_factory=lambda: {
         "hashlib.sha256", "hashlib.sha512", "hmac.new", "redact", "mask_secret", "mask_token",
         "anonymize", "pseudonymize", "remove_sensitive_fields", "filter_sensitive_fields", "sanitize",
@@ -143,9 +115,7 @@ class RuleConfig:
         "werkzeug.utils.secure_filename", "os.path.abspath", "os.path.realpath",
     })
 
-    # ========================================================
-    # 【修改位置 1.5】Sensitive Path：PE3/E3 路径关键词
-    # ========================================================
+    
     sensitive_path_keywords: Set[str] = field(default_factory=lambda: {
         ".env", ".npmrc", ".pypirc", "id_rsa", "id_dsa", "id_ed25519", "known_hosts", ".ssh",
         ".aws/credentials", ".aws/config", ".azure", ".gcp", ".gnupg", ".pem", "credentials",
@@ -156,9 +126,7 @@ class RuleConfig:
         ".git-credentials",
     })
 
-    # ========================================================
-    # 【修改位置 1.6】Sensitive Name：E2 凭证、P3 Agent 上下文、D8 动态分派变量
-    # ========================================================
+    
     sensitive_name_keywords: Set[str] = field(default_factory=lambda: {
         "password", "passwd", "pwd", "secret", "token", "api_key", "apikey", "access_key",
         "access_token", "refresh_token", "private_key", "credential", "cookie", "session", "jwt", "auth",
@@ -170,9 +138,7 @@ class RuleConfig:
         "handler_name", "plugin_name", "tool_name", "method_name",
     })
 
-    # ========================================================
-    # 【修改位置 1.7】论文模式映射：用于输出 source_pattern / sink_pattern / severity / kill_chain
-    # ========================================================
+    
     source_pattern_calls: Dict[str, Set[str]] = field(default_factory=lambda: {
         "E2_Credential_Harvesting": {
             "os.getenv", "os.environ.get", "os.environ.__getitem__", "dotenv.get_key", "dotenv_values",
